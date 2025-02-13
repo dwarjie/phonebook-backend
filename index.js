@@ -6,6 +6,7 @@ morgan.token("req-body", (req, res) => {
   return JSON.stringify(req.body);
 });
 
+app.use(express.static("dist"));
 app.use(express.json());
 app.use(
   morgan(
@@ -99,7 +100,7 @@ app.post("/api/persons/", (req, res) => {
   res.json({ message: `Person ${data.name} successfully created.` });
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Listening in PORT: ${PORT}`);
 });
