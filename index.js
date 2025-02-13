@@ -1,12 +1,13 @@
 const express = require("express");
 const morgan = require("morgan");
+const cors = require("cors");
 const app = express();
 
 morgan.token("req-body", (req, res) => {
   return JSON.stringify(req.body);
 });
 
-app.use(express.static("dist"));
+app.use(cors());
 app.use(express.json());
 app.use(
   morgan(
@@ -69,6 +70,7 @@ app.get("/api/persons/:id", (req, res) => {
 app.delete("/api/persons/:id", (req, res) => {
   const id = req.params.id;
   const person = persons.find((person) => person.id === id);
+  console.log(person);
   if (!person)
     return res.status(400).json({ message: "Person ID is does not exist." });
 
@@ -91,7 +93,7 @@ app.post("/api/persons/", (req, res) => {
     return res.status(400).json({ message: "Missing required informations." });
 
   const newPerson = {
-    id: Math.floor(Math.random() * 100),
+    id: Math.floor(Math.random() * 100).toString(),
     name: data.name,
     number: data.number,
   };
