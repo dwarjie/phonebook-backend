@@ -1,4 +1,6 @@
+require("dotenv").config();
 const express = require("express");
+const Phonebook = require("./models/phonebook");
 const morgan = require("morgan");
 const cors = require("cors");
 const app = express();
@@ -39,23 +41,25 @@ let persons = [
 ];
 
 app.get("/api/persons", (req, res) => {
-  if (!persons.length) {
-    return res.json({ message: "Person data is empty" });
-  }
+  Phonebook.find({}).then((persons) => {
+    if (!persons || !persons.length)
+      return res.json({ message: "Person data is empty" });
 
-  res.json(persons);
+    res.json(persons);
+  });
 });
 
 app.get("/info/", (req, res) => {
-  if (!persons.length) {
-    return res.send(`<p>Person data is empty</p>`);
-  }
+  Phonebook.find({}).then((persons) => {
+    if (!persons || !persons.length)
+      return res.send(`<p>Person data is empty</p>`);
 
-  const template = `
-    <p>Phonebook has info for ${persons.length} people</p>
-    <p>${Date()}</p>
-  `;
-  res.send(template);
+    const template = `
+      <p>Phonebook has info for ${persons.length} people</p>
+      <p>${Date()}</p>
+    `;
+    res.send(template);
+  });
 });
 
 app.get("/api/persons/:id", (req, res) => {
@@ -82,27 +86,27 @@ app.delete("/api/persons/:id", (req, res) => {
 app.post("/api/persons/", (req, res) => {
   const data = req.body;
 
-  if (
-    persons.find(
-      (person) => person.name.toLowerCase() === data.name.toLowerCase(),
-    )
-  )
-    return res.status(400).json({ message: "Name already exist." });
+  // if (
+  //   persons.find(
+  //     (person) => person.name.toLowerCase() === data.name.toLowerCase(),
+  //   )
+  // )
+  //   return res.status(400).json({ message: "Name already exist." });
 
-  if (data.name == "" || data.number == "")
+  if (data.name === undefined || data.number === undefined)
     return res.status(400).json({ message: "Missing required informations." });
 
-  const newPerson = {
-    id: Math.floor(Math.random() * 100).toString(),
+  const newPerson = new Phonebook({
     name: data.name,
     number: data.number,
-  };
+  });
 
-  persons = persons.concat(newPerson);
-  res.json({ message: `Person ${data.name} successfully created.` });
+  newPerson.save().then((person) => {
+    res.json({ message: `Person ${person.name} successfully created.` });
+  });
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Listening in PORT: ${PORT}`);
 });
