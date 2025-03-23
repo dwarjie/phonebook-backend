@@ -40,58 +40,70 @@ let persons = [
   },
 ];
 
-app.get("/api/persons", (req, res) => {
-  Phonebook.find({}).then((persons) => {
-    if (!persons || !persons.length)
-      return res.json({ message: "Person data is empty" });
+app.get("/api/persons", (req, res, next) => {
+  Phonebook.find({})
+    .then((persons) => {
+      if (!persons || !persons.length)
+        return res.json({ message: "Person data is empty" });
 
-    res.json(persons);
-  });
+      res.json(persons);
+    })
+    .catch((error) => {
+      next(error);
+    });
 });
 
-app.get("/info/", (req, res) => {
-  Phonebook.find({}).then((persons) => {
-    if (!persons || !persons.length)
-      return res.send(`<p>Person data is empty</p>`);
+app.get("/info/", (req, res, next) => {
+  Phonebook.find({})
+    .then((persons) => {
+      if (!persons || !persons.length)
+        return res.send(`<p>Person data is empty</p>`);
 
-    const template = `
+      const template = `
       <p>Phonebook has info for ${persons.length} people</p>
       <p>${Date()}</p>
     `;
-    res.send(template);
-  });
+      res.send(template);
+    })
+    .catch((error) => {
+      next(error);
+    });
 });
 
-app.get("/api/persons/:id", (req, res) => {
+app.get("/api/persons/:id", (req, res, next) => {
   const id = req.params.id;
-  const person = persons.find((person) => person.id === id);
-  if (!person)
-    return res.status(400).json({ message: "Person ID is does not exist." });
+  Phonebook.findById(id)
+    .then((person) => {
+      if (!person)
+        return res
+          .status(400)
+          .json({ message: "Person ID is does not exist." });
 
-  res.json(person);
+      res.json(person);
+    })
+    .catch((error) => {
+      next(error);
+    });
 });
 
-app.delete("/api/persons/:id", (req, res) => {
+app.delete("/api/persons/:id", (req, res, next) => {
   const id = req.params.id;
-  const person = persons.find((person) => person.id === id);
-  console.log(person);
-  if (!person)
-    return res.status(400).json({ message: "Person ID is does not exist." });
+  Phonebook.findByIdAndDelete(id)
+    .then((result) => {
+      if (!result || result === null)
+        return res
+          .status(400)
+          .json({ message: "Person ID is does not exist." });
 
-  const updatedData = persons.filter((person) => person.id !== id);
-  persons = updatedData;
-  res.json({ message: "Person successfully deleted." });
+      res.status(204).end();
+    })
+    .catch((error) => {
+      next(error);
+    });
 });
 
-app.post("/api/persons/", (req, res) => {
+app.post("/api/persons/", (req, res, next) => {
   const data = req.body;
-
-  // if (
-  //   persons.find(
-  //     (person) => person.name.toLowerCase() === data.name.toLowerCase(),
-  //   )
-  // )
-  //   return res.status(400).json({ message: "Name already exist." });
 
   if (data.name === undefined || data.number === undefined)
     return res.status(400).json({ message: "Missing required informations." });
@@ -101,10 +113,60 @@ app.post("/api/persons/", (req, res) => {
     number: data.number,
   });
 
-  newPerson.save().then((person) => {
-    res.json({ message: `Person ${person.name} successfully created.` });
-  });
+  newPerson
+    .save()
+    .then((person) => {
+      res.json({ message: `Person ${person.name} successfully created.` });
+    })
+    .catch((error) => {
+      next(error);
+    });
 });
+
+app.put("/api/persons/:id", (req, res, next) => {
+  const data = req.body;
+
+  Phonebook.findByIdAndUpdate(
+    req.params.id,
+    { number: data.number },
+    {
+      new: true,
+    },
+  )
+    .then((result) => {
+      res.json(result);
+    })
+    .catch((error) => {
+      next(error);
+    });
+});
+
+const unknownRouteMiddleware = (req, res) => {
+  res.status(404).send({ error: "Unknown Endpoint" });
+};
+
+const errorHandlerMiddleware = (error, req, res, next) => {
+  console.log(error.message);
+
+  if (error.name === "CastError") {
+    return res
+      .status(400)
+      .send({ error: "Malformatted ID. Please fix your request ID format." });
+  } else if (error.name === "ParallelSaveError") {
+    return res.status(400).send({
+      error: "Save is called too many times. Please try again later.",
+    });
+  } else if (error.name === "ValidationError") {
+    return res
+      .status(400)
+      .send({ error: "Validation Failed. Please try again later." });
+  }
+
+  next(error);
+};
+
+app.use(unknownRouteMiddleware);
+app.use(errorHandlerMiddleware);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
